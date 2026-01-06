@@ -1,0 +1,1683 @@
+{
+  "name": "Recordings",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "labelIds": [
+            "INBOX"
+          ],
+          "readStatus": "unread",
+          "sender": "no-reply@zoom.us"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -500,
+        0
+      ],
+      "id": "be1104cc-5fdc-4092-988a-f5b6d7f7e2ba",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "LLaADcDCshmPLwQB",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "text": "={{ $('Gmail Trigger').item.json.textAsHtml }}",
+        "attributes": {
+          "attributes": [
+            {
+              "name": "Link",
+              "description": "Link for recording viewing",
+              "required": true
+            },
+            {
+              "name": "Passcode",
+              "description": "Passcode for accessing the recording",
+              "required": true
+            },
+            {
+              "name": "Date",
+              "description": "Date extracted ",
+              "required": true
+            }
+          ]
+        },
+        "options": {
+          "systemPromptTemplate": "You are an expert extraction algorithm.\nOnly extract the link for viewing the recording, then passcode in the same text, and finally the date mentioned in the text of the letter (Date: Mar , 2025 06:00 PM Warsaw) and covert it in the following format: yyyy-MM-dd'T'HH:mm:ss.SSS."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+      "typeVersion": 1,
+      "position": [
+        -140,
+        0
+      ],
+      "id": "56f234c5-156e-463d-a2de-a149e0f7bdc1",
+      "name": "Information Extractor"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "grok-2-1212",
+          "mode": "list",
+          "cachedResultName": "grok-2-1212"
+        },
+        "options": {
+          "responseFormat": "text"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -120,
+        180
+      ],
+      "id": "ecaabcf0-b7ec-431b-baba-6cb4c5884ef5",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "sExZNpOtIkHaibkx",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "formatDate",
+        "date": "={{ $json.output.Date }}",
+        "format": "custom",
+        "customFormat": "dd/MM",
+        "outputFieldName": "=Parsed Now Date",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dateTime",
+      "typeVersion": 2,
+      "position": [
+        160,
+        0
+      ],
+      "id": "c25a71e1-8b94-486b-a70b-563cf0e3a0b8",
+      "name": "Parsed Now Date"
+    },
+    {
+      "parameters": {
+        "operation": "formatDate",
+        "date": "={{ $('Information Extractor').item.json.output.Date }}",
+        "format": "custom",
+        "customFormat": "EEEE",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dateTime",
+      "typeVersion": 2,
+      "position": [
+        300,
+        0
+      ],
+      "id": "ca0af822-6306-4e32-a378-06d6d8331192",
+      "name": "Day of the week"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "f55699e2-6806-4096-aa56-a8a830fe7e10",
+              "leftValue": "={{ $('Day of the week').item.json.formattedDate }}",
+              "rightValue": "Monday",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        840,
+        -280
+      ],
+      "id": "e31ddbdb-5c04-4324-ba87-f783ca815675",
+      "name": "Monday",
+      "alwaysOutputData": false,
+      "notesInFlow": false
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "f55699e2-6806-4096-aa56-a8a830fe7e10",
+              "leftValue": "={{ $('Day of the week').item.json.formattedDate }}",
+              "rightValue": "Tuesday",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        840,
+        -140
+      ],
+      "id": "dbaaf91c-d34c-4de9-85bf-499965f79e9a",
+      "name": "Tuesday",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "f55699e2-6806-4096-aa56-a8a830fe7e10",
+              "leftValue": "={{ $('Day of the week').item.json.formattedDate }}",
+              "rightValue": "Wednesday",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        840,
+        0
+      ],
+      "id": "44471f8c-7123-458d-97a9-0962566b8f0c",
+      "name": "Wednesday",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "f55699e2-6806-4096-aa56-a8a830fe7e10",
+              "leftValue": "={{ $('Day of the week').item.json.formattedDate }}",
+              "rightValue": "Thursday",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "12ae5ed2-15d0-47eb-9e85-dffef39fa259",
+              "leftValue": "={{ $('Gmail Trigger').item.json.subject }}",
+              "rightValue": "Continuation (Mid)",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        840,
+        140
+      ],
+      "id": "077106cc-d8e1-442c-a9ca-de2a4435f918",
+      "name": "Thursday",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "f55699e2-6806-4096-aa56-a8a830fe7e10",
+              "leftValue": "={{ $json.formattedDate }}",
+              "rightValue": "Friday",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        840,
+        480
+      ],
+      "id": "2c7f5193-f6cc-43d3-9f33-d82fecdac737",
+      "name": "Friday",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "chatId": "-1002365657339",
+        "text": "=<b>Мастер-классы и разборы треков</b>\n<b>Запись занятия от {{ $('Parsed Now Date').item.json['Parsed Now Date'] }}</b>\n\n🔐 Passcode: <code>{{ $('Information Extractor').item.json.output.Passcode }}</code>\n\n<blockquote><i>Мы не храним записи, скачивайте их самостоятельно. Срок хранения в облаке Zoom — 1 месяц.</i></blockquote>\n\n#илья #понедельник_18cet",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Запись занятия 🎥",
+                    "additionalFields": {
+                      "url": "={{ $('Information Extractor').item.json.output.Link }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1840,
+        -1360
+      ],
+      "id": "f49c6bb7-7b51-4901-a7b9-6329263fc793",
+      "name": "PREMIUM",
+      "webhookId": "babf9dad-a918-47b7-b0a7-0a0841ab0c5e",
+      "credentials": {
+        "telegramApi": {
+          "id": "TqfI2pK2gFr2d3kO",
+          "name": "sekta.system"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "-1002448566144",
+        "text": "=<b>Мастер-классы и разборы треков</b>\n<b>Запись занятия от {{ $('Parsed Now Date').item.json['Parsed Now Date'] }}</b>\n\n🔐 Passcode: <code>{{ $('Information Extractor').item.json.output.Passcode }}</code>\n\n<blockquote><i>Мы не храним записи, скачивайте их самостоятельно. Срок хранения в облаке Zoom — 1 месяц.</i></blockquote>\n\n#илья #понедельник_18cet",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Запись занятия 🎥",
+                    "additionalFields": {
+                      "url": "={{ $('Information Extractor').item.json.output.Link }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1840,
+        -1220
+      ],
+      "id": "4f288618-3ab1-4f5f-859e-b82f850c984e",
+      "name": "PREMIUM+",
+      "webhookId": "babf9dad-a918-47b7-b0a7-0a0841ab0c5e",
+      "credentials": {
+        "telegramApi": {
+          "id": "TqfI2pK2gFr2d3kO",
+          "name": "sekta.system"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "-1002025988991",
+        "text": "=<b>Запись занятия от {{ $('Parsed Now Date').item.json['Parsed Now Date'] }}</b>\n🔐 Passcode: <code>{{ $('Information Extractor').item.json.output.Passcode }}</code>\n\n<blockquote><i>Мы не храним записи, скачивайте их самостоятельно. Срок хранения в облаке Zoom — 1 месяц.</i></blockquote>\n\n#запись",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Запись занятия 🎥",
+                    "additionalFields": {
+                      "url": "={{ $('Information Extractor').item.json.output.Link }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1840,
+        -1080
+      ],
+      "id": "2e0c76e1-bb2d-4e85-98d0-b2dce910f37b",
+      "name": "Monday Group",
+      "webhookId": "babf9dad-a918-47b7-b0a7-0a0841ab0c5e",
+      "credentials": {
+        "telegramApi": {
+          "id": "TqfI2pK2gFr2d3kO",
+          "name": "sekta.system"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "-1002365657339",
+        "text": "=<b>Creative Hub</b>\n<b>Запись занятия от {{ $('Parsed Now Date').item.json['Parsed Now Date'] }}</b>\n\n🔐 Passcode: <code>{{ $('Information Extractor').item.json.output.Passcode }}</code>\n\n<blockquote><i>Мы не храним записи, скачивайте их самостоятельно. Срок хранения в облаке Zoom — 1 месяц.</i></blockquote>\n\n#creativehub #миша #вторник_18cet",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Запись занятия 🎥",
+                    "additionalFields": {
+                      "url": "={{ $('Information Extractor').item.json.output.Link }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1840,
+        -900
+      ],
+      "id": "1adf9955-edb6-478f-b9a6-2a76583f5178",
+      "name": "PREMIUM1",
+      "webhookId": "babf9dad-a918-47b7-b0a7-0a0841ab0c5e",
+      "credentials": {
+        "telegramApi": {
+          "id": "TqfI2pK2gFr2d3kO",
+          "name": "sekta.system"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "-1002448566144",
+        "text": "=<b>Creative Hub</b>\n<b>Запись занятия от {{ $('Parsed Now Date').item.json['Parsed Now Date'] }}</b>\n\n🔐 Passcode: <code>{{ $('Information Extractor').item.json.output.Passcode }}</code>\n\n<blockquote><i>Мы не храним записи, скачивайте их самостоятельно. Срок хранения в облаке Zoom — 1 месяц.</i></blockquote>\n\n#creativehub #миша #вторник_18cet",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Запись занятия 🎥",
+                    "additionalFields": {
+                      "url": "={{ $('Information Extractor').item.json.output.Link }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1840,
+        -760
+      ],
+      "id": "1200c645-77a9-4a69-a7e4-93c9ef7f0ab3",
+      "name": "PREMIUM+1",
+      "webhookId": "babf9dad-a918-47b7-b0a7-0a0841ab0c5e",
+      "credentials": {
+        "telegramApi": {
+          "id": "TqfI2pK2gFr2d3kO",
+          "name": "sekta.system"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "-1002365657339",
+        "text": "=<b>Мастер-классы и разборы треков</b>\n<b>Запись занятия от {{ $('Parsed Now Date').item.json['Parsed Now Date'] }}</b>\n\n🔐 Passcode: <code>{{ $('Information Extractor').item.json.output.Passcode }}</code>\n\n<blockquote><i>Мы не храним записи, скачивайте их самостоятельно. Срок хранения в облаке Zoom — 1 месяц.</i></blockquote>\n\n#илья #среда_18cet",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Запись занятия 🎥",
+                    "additionalFields": {
+                      "url": "={{ $('Information Extractor').item.json.output.Link }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1840,
+        -420
+      ],
+      "id": "3d03fab6-5aef-448b-a10d-e68f10b29489",
+      "name": "PREMIUM2",
+      "webhookId": "babf9dad-a918-47b7-b0a7-0a0841ab0c5e",
+      "credentials": {
+        "telegramApi": {
+          "id": "TqfI2pK2gFr2d3kO",
+          "name": "sekta.system"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "-1002448566144",
+        "text": "=<b>Мастер-классы и разборы треков</b>\n<b>Запись занятия от {{ $('Parsed Now Date').item.json['Parsed Now Date'] }}</b>\n\n🔐 Passcode: <code>{{ $('Information Extractor').item.json.output.Passcode }}</code>\n\n<blockquote><i>Мы не храним записи, скачивайте их самостоятельно. Срок хранения в облаке Zoom — 1 месяц.</i></blockquote>\n\n#илья #среда_18cet",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Запись занятия 🎥",
+                    "additionalFields": {
+                      "url": "={{ $('Information Extractor').item.json.output.Link }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1840,
+        -260
+      ],
+      "id": "978d3f72-1a47-481b-9674-c299bcba3e09",
+      "name": "PREMIUM+2",
+      "webhookId": "babf9dad-a918-47b7-b0a7-0a0841ab0c5e",
+      "credentials": {
+        "telegramApi": {
+          "id": "TqfI2pK2gFr2d3kO",
+          "name": "sekta.system"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "-1002262971267",
+        "text": "=<b>Запись занятия от {{ $('Parsed Now Date').item.json['Parsed Now Date'] }}</b>\n🔐 Passcode: <code>{{ $('Information Extractor').item.json.output.Passcode }}</code>\n\n<blockquote><i>Мы не храним записи, скачивайте их самостоятельно. Срок хранения в облаке Zoom — 1 месяц.</i></blockquote>\n\n#запись",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "=Запись занятия 🎥",
+                    "additionalFields": {
+                      "url": "={{ $('Information Extractor').item.json.output.Link }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1840,
+        -620
+      ],
+      "id": "600333e7-4952-4df4-a85c-91f0186e17ae",
+      "name": "Tuesday Group",
+      "webhookId": "babf9dad-a918-47b7-b0a7-0a0841ab0c5e",
+      "credentials": {
+        "telegramApi": {
+          "id": "TqfI2pK2gFr2d3kO",
+          "name": "sekta.system"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "-1001936138259",
+        "text": "=<b>Запись занятия от {{ $('Parsed Now Date').item.json['Parsed Now Date'] }}</b>\n🔐 Passcode: <code>{{ $('Information Extractor').item.json.output.Passcode }}</code>\n\n<blockquote><i>Мы не храним записи, скачивайте их самостоятельно. Срок хранения в облаке Zoom — 1 месяц.</i></blockquote>\n\n#запись",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Запись занятия 🎥",
+                    "additionalFields": {
+                      "url": "={{ $('Information Extractor').item.json.output.Link }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1840,
+        -100
+      ],
+      "id": "8bd5769b-5d04-4507-9f99-4d3f081c9dce",
+      "name": "Wednesday Group",
+      "webhookId": "babf9dad-a918-47b7-b0a7-0a0841ab0c5e",
+      "credentials": {
+        "telegramApi": {
+          "id": "TqfI2pK2gFr2d3kO",
+          "name": "sekta.system"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "db3b54ee-b899-4143-9293-983bf4cd22db",
+              "leftValue": "={{ $('Gmail Trigger').item.json.subject }}",
+              "rightValue": "Music Theory",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        1040,
+        640
+      ],
+      "id": "132df183-2fd5-420b-b731-bdcfe9aea1cb",
+      "name": "Filter"
+    },
+    {
+      "parameters": {
+        "operation": "roundDate",
+        "date": "={{ $('Information Extractor').item.json.output.Date }}",
+        "toNearest": "hour",
+        "options": {
+          "includeInputFields": false
+        }
+      },
+      "type": "n8n-nodes-base.dateTime",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "id": "c140fa0c-b4cc-456a-9c59-18b04770ef97",
+      "name": "Round Date"
+    },
+    {
+      "parameters": {
+        "chatId": "-1002690255961",
+        "text": "=Запись занятия от {{ $('Parsed Now Date').item.json['Parsed Now Date'] }}\n🔐 Passcode: <code>{{ $('Information Extractor').item.json.output.Passcode }}</code>\n\n<blockquote><i>Мы не храним записи, скачивайте их самостоятельно. Срок хранения в облаке Zoom — 1 месяц.</i></blockquote>\n\n#запись",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Запись занятия 🎥",
+                    "additionalFields": {
+                      "url": "={{ $('Information Extractor').item.json.output.Link }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1840,
+        140
+      ],
+      "id": "194ecbae-5e32-47f2-a46f-c6df7f5cfe62",
+      "name": "Thursday Group",
+      "webhookId": "babf9dad-a918-47b7-b0a7-0a0841ab0c5e",
+      "credentials": {
+        "telegramApi": {
+          "id": "TqfI2pK2gFr2d3kO",
+          "name": "sekta.system"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d10929e3-32a7-4859-bad1-9e6db29031b2",
+              "leftValue": "={{ $('Gmail Trigger').item.json.subject }}",
+              "rightValue": "Mixing&Mastering",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        1040,
+        320
+      ],
+      "id": "b3944b8f-da52-493d-b3e3-c82722640635",
+      "name": "Filter1"
+    },
+    {
+      "parameters": {
+        "chatId": "-1002381038324",
+        "text": "=<b>Запись занятия от {{ $('Parsed Now Date').item.json['Parsed Now Date'] }}</b>\n🔐 Passcode: <code>{{ $('Information Extractor').item.json.output.Passcode }}</code>\n\n<blockquote><i>Мы не храним записи, скачивайте их самостоятельно. Срок хранения в облаке Zoom — 1 месяц.</i></blockquote>\n\n#запись",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Запись занятия 🎥",
+                    "additionalFields": {
+                      "url": "={{ $('Information Extractor').item.json.output.Link }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1840,
+        660
+      ],
+      "id": "22184f83-d549-4144-b175-fe11d5239085",
+      "name": "Friday Mixing",
+      "webhookId": "babf9dad-a918-47b7-b0a7-0a0841ab0c5e",
+      "credentials": {
+        "telegramApi": {
+          "id": "TqfI2pK2gFr2d3kO",
+          "name": "sekta.system"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "-1002365657339",
+        "text": "=<b>Сведение и мастеринг</b>\n<b>Запись занятия от {{ $('Parsed Now Date').item.json['Parsed Now Date'] }}</b>\n\n🔐 Passcode: <code>{{ $('Information Extractor').item.json.output.Passcode }}</code>\n\n<blockquote><i>Мы не храним записи, скачивайте их самостоятельно. Срок хранения в облаке Zoom — 1 месяц.</i></blockquote>\n\n#саша #пятница_14cet",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Запись занятия 🎥",
+                    "additionalFields": {
+                      "url": "={{ $('Information Extractor').item.json.output.Link }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1840,
+        380
+      ],
+      "id": "9c83e35e-dd70-4c24-a2e7-b6e3ebedfa16",
+      "name": "PREMIUM5",
+      "webhookId": "babf9dad-a918-47b7-b0a7-0a0841ab0c5e",
+      "credentials": {
+        "telegramApi": {
+          "id": "TqfI2pK2gFr2d3kO",
+          "name": "sekta.system"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "-1002448566144",
+        "text": "=<b>Сведение и мастеринг</b>\n<b>Запись занятия от {{ $('Parsed Now Date').item.json['Parsed Now Date'] }}</b>\n\n🔐 Passcode: <code>{{ $('Information Extractor').item.json.output.Passcode }}</code>\n\n<blockquote><i>Мы не храним записи, скачивайте их самостоятельно. Срок хранения в облаке Zoom — 1 месяц.</i></blockquote>\n\n#саша #пятница_14cet",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Запись занятия 🎥",
+                    "additionalFields": {
+                      "url": "={{ $('Information Extractor').item.json.output.Link }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1840,
+        520
+      ],
+      "id": "975d082c-7db0-4160-952c-dca506d904b9",
+      "name": "PREMIUM+5",
+      "webhookId": "babf9dad-a918-47b7-b0a7-0a0841ab0c5e",
+      "credentials": {
+        "telegramApi": {
+          "id": "TqfI2pK2gFr2d3kO",
+          "name": "sekta.system"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "-1002448566144",
+        "text": "=<b>Музыкальная теория</b>\n<b>Запись занятия от {{ $('Parsed Now Date').item.json['Parsed Now Date'] }}</b>\n\n🔐 Passcode: <code>{{ $('Information Extractor').item.json.output.Passcode }}</code>\n\n<blockquote><i>Мы не храним записи, скачивайте их самостоятельно. Срок хранения в облаке Zoom — 1 месяц.</i></blockquote>\n\n#музтеория #даша #пятница_18cet",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Запись занятия 🎥",
+                    "additionalFields": {
+                      "url": "={{ $('Information Extractor').item.json.output.Link }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1840,
+        840
+      ],
+      "id": "7076766b-6380-4f1b-b8af-e7f24d2bd425",
+      "name": "PREMIUM+6",
+      "webhookId": "babf9dad-a918-47b7-b0a7-0a0841ab0c5e",
+      "credentials": {
+        "telegramApi": {
+          "id": "TqfI2pK2gFr2d3kO",
+          "name": "sekta.system"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "markAsRead",
+        "messageId": "={{ $json.id }}"
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        -320,
+        0
+      ],
+      "id": "a5d08513-4afc-4d10-871f-b9c619239aa8",
+      "name": "Gmail",
+      "webhookId": "64f77cff-03a0-43ca-898d-763d8412b922",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "LLaADcDCshmPLwQB",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "f55699e2-6806-4096-aa56-a8a830fe7e10",
+              "leftValue": "={{ $('Day of the week').item.json.formattedDate }}",
+              "rightValue": "Saturday",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        840,
+        1360
+      ],
+      "id": "e770421c-2fca-4359-a891-889d995452f1",
+      "name": "Saturday",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "chatId": "-1002662200633",
+        "text": "=Запись занятия от {{ $('Parsed Now Date').item.json['Parsed Now Date'] }}\n🔐 Passcode: <code>{{ $('Information Extractor').item.json.output.Passcode }}</code>\n\n<blockquote><i>Мы не храним записи, скачивайте их самостоятельно. Срок хранения в облаке Zoom — 1 месяц.</i></blockquote>\n\n#запись",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Запись занятия 🎥",
+                    "additionalFields": {
+                      "url": "={{ $('Information Extractor').item.json.output.Link }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1840,
+        1220
+      ],
+      "id": "35e81422-bdd9-4172-b107-25e63fe41d38",
+      "name": "Saturday Group",
+      "webhookId": "babf9dad-a918-47b7-b0a7-0a0841ab0c5e",
+      "credentials": {
+        "telegramApi": {
+          "id": "TqfI2pK2gFr2d3kO",
+          "name": "sekta.system"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "-1002303264635",
+        "text": "=Запись занятия от \n🔐 Passcode: <code>POPAPOPA</code>\n\n<blockquote><i>Мы не храним записи, скачивайте их самостоятельно. Срок хранения в облаке Zoom — 1 месяц.</i></blockquote>\n\n#запись",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Запись занятия 🎥",
+                    "additionalFields": {
+                      "url": "=https://us06web.zoom.us/rec/share/mJ5PMZqgYteo5J2A31idOneuTlCtelvLJ0gau-_-BxAtjxT-EcYawaR6RVVRR_48.SujLxNw_s-suFS_O?startTime=1744453078000"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -500,
+        220
+      ],
+      "id": "b630ad71-c4fb-437f-8ba3-e6c59a721987",
+      "name": "MANUAL",
+      "webhookId": "babf9dad-a918-47b7-b0a7-0a0841ab0c5e",
+      "credentials": {
+        "telegramApi": {
+          "id": "TqfI2pK2gFr2d3kO",
+          "name": "sekta.system"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "chatId": "-1002350077050",
+        "text": "=Запись занятия от {{ $('Parsed Now Date').item.json['Parsed Now Date'] }}\n🔐 Passcode: <code>{{ $('Information Extractor').item.json.output.Passcode }}</code>\n\n<blockquote><i>Мы не храним записи, скачивайте их самостоятельно. Срок хранения в облаке Zoom — 1 месяц.</i></blockquote>\n\n#запись",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Запись занятия 🎥",
+                    "additionalFields": {
+                      "url": "={{ $('Information Extractor').item.json.output.Link }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1840,
+        1360
+      ],
+      "id": "b180c992-4e4b-497a-9d3e-27ed453e486c",
+      "name": "Saturday Group1",
+      "webhookId": "babf9dad-a918-47b7-b0a7-0a0841ab0c5e",
+      "credentials": {
+        "telegramApi": {
+          "id": "TqfI2pK2gFr2d3kO",
+          "name": "sekta.system"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "-1002303264635",
+        "text": "=Запись занятия от {{ $('Parsed Now Date').item.json['Parsed Now Date'] }}\n🔐 Passcode: <code>{{ $('Information Extractor').item.json.output.Passcode }}</code>\n\n<blockquote><i>Мы не храним записи, скачивайте их самостоятельно. Срок хранения в облаке Zoom — 1 месяц.</i></blockquote>\n\n#запись",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Запись занятия 🎥",
+                    "additionalFields": {
+                      "url": "={{ $('Information Extractor').item.json.output.Link }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1840,
+        1500
+      ],
+      "id": "91b28be9-75ff-49b1-a2ef-a7b1170eea88",
+      "name": "Saturday Group2",
+      "webhookId": "babf9dad-a918-47b7-b0a7-0a0841ab0c5e",
+      "credentials": {
+        "telegramApi": {
+          "id": "TqfI2pK2gFr2d3kO",
+          "name": "sekta.system"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "3ce47b36-9b41-477d-955f-443905804c71",
+              "leftValue": "={{ $('Gmail Trigger').item.json.subject }}",
+              "rightValue": "ULTRA PRO",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        1040,
+        1220
+      ],
+      "id": "9e178b27-0e16-4106-9a86-035b5e69d238",
+      "name": "ULTRA PRO"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "3ce47b36-9b41-477d-955f-443905804c71",
+              "leftValue": "={{ $('Gmail Trigger').item.json.subject }}",
+              "rightValue": "Start (Beginners)",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        1040,
+        1360
+      ],
+      "id": "de580e92-df99-45c7-bce0-73d1906056c9",
+      "name": "Start (Beginners)"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "3ce47b36-9b41-477d-955f-443905804c71",
+              "leftValue": "={{ $('Gmail Trigger').item.json.subject }}",
+              "rightValue": "TEENS",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        1040,
+        1500
+      ],
+      "id": "1151980f-9ad6-440a-99dc-28e70a6dcce2",
+      "name": "TEENS"
+    },
+    {
+      "parameters": {
+        "chatId": "-1002354092589",
+        "text": "=<b>Запись занятия от {{ $('Parsed Now Date').item.json['Parsed Now Date'] }}</b>\n🔐 Passcode: <code>{{ $('Information Extractor').item.json.output.Passcode }}</code>\n\n<blockquote><i>Мы не храним записи, скачивайте их самостоятельно. Срок хранения в облаке Zoom — 1 месяц.</i></blockquote>\n\n#запись",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "=Запись занятия 🎥",
+                    "additionalFields": {
+                      "url": "={{ $('Information Extractor').item.json.output.Link }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1840,
+        980
+      ],
+      "id": "58081459-ebf9-4fc3-8334-b723e6cca5c7",
+      "name": "Friday Theory",
+      "webhookId": "babf9dad-a918-47b7-b0a7-0a0841ab0c5e",
+      "credentials": {
+        "telegramApi": {
+          "id": "TqfI2pK2gFr2d3kO",
+          "name": "sekta.system"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Information Extractor",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Information Extractor": {
+      "main": [
+        [
+          {
+            "node": "Parsed Now Date",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parsed Now Date": {
+      "main": [
+        [
+          {
+            "node": "Day of the week",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Day of the week": {
+      "main": [
+        [
+          {
+            "node": "Round Date",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Monday": {
+      "main": [
+        [
+          {
+            "node": "PREMIUM",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Monday Group",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "PREMIUM+",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tuesday": {
+      "main": [
+        [
+          {
+            "node": "PREMIUM1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "PREMIUM+1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Tuesday Group",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wednesday": {
+      "main": [
+        [
+          {
+            "node": "PREMIUM2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "PREMIUM+2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Wednesday Group",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Thursday": {
+      "main": [
+        [
+          {
+            "node": "Thursday Group",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Friday": {
+      "main": [
+        [
+          {
+            "node": "Filter",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Filter1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Round Date": {
+      "main": [
+        [
+          {
+            "node": "Monday",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Tuesday",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Wednesday",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Thursday",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Friday",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Saturday",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter": {
+      "main": [
+        [
+          {
+            "node": "PREMIUM+6",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Friday Theory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter1": {
+      "main": [
+        [
+          {
+            "node": "PREMIUM5",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "PREMIUM+5",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Friday Mixing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail": {
+      "main": [
+        [
+          {
+            "node": "Information Extractor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Saturday": {
+      "main": [
+        [
+          {
+            "node": "ULTRA PRO",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Start (Beginners)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "TEENS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ULTRA PRO": {
+      "main": [
+        [
+          {
+            "node": "Saturday Group",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start (Beginners)": {
+      "main": [
+        [
+          {
+            "node": "Saturday Group1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TEENS": {
+      "main": [
+        [
+          {
+            "node": "Saturday Group2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PREMIUM5": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "Europe/Warsaw",
+    "saveExecutionProgress": true
+  },
+  "versionId": "e829e4a2-6b6c-4d1e-af37-b4b1e2be10e8",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "eb8cc39b16c731688d32d74ca5c6869ffdb9f1ace319f8f9c8ee1ffc4fb37925"
+  },
+  "id": "BzRgDrQ7gIL8L6Tl",
+  "tags": []
+}
