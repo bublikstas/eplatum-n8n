@@ -1,0 +1,8 @@
+{
+  "name": "eplatum-n8n",
+  "private": true,
+  "version": "1.0.0",
+  "engines": { "node": ">=20" },
+  "dependencies": { "n8n": "^1.93.0" },
+  "scripts": { "start": "bash ./start-render.sh" }
+}
