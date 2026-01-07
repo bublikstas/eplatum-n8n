@@ -5,6 +5,6 @@ echo "[import] sanitizing workflows..."
 python3 ./scripts/sanitize_workflow_ids.py
 
 echo "[import] importing into n8n..."
-n8n import:workflow --separate --input=./workflows_sanitized
+npx n8n import:workflow --separate --input=./workflows_sanitized
 
 echo "[import] done."
