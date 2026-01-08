@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      
+      - name: Validate package.json
+        run: python3 -m json.tool package.json > /dev/null
+      
+      - name: Check shell script syntax
+        run: |
+          for script in start-render.sh scripts/import_workflows.sh entrypoint.sh; do
+            if [ -f "$script" ]; then
+              sh -n "$script"
+              echo "✓ $script syntax OK"
+            fi
+          done
+      
+      - name: Install shellcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+      
+      - name: Run shellcheck
+        run: |
+          for script in start-render.sh scripts/import_workflows.sh entrypoint.sh; do
+            if [ -f "$script" ]; then
+              shellcheck "$script" || true
+            fi
+          done
+        continue-on-error: true
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Build Docker image
+        run: docker build -t eplatum-n8n:test .
+      
+      - name: Verify n8n in container
+        run: |
+          docker run --rm eplatum-n8n:test sh -c "command -v n8n && n8n --version"
+      
+      - name: Check summary
+        run: |
+          echo "✅ All CI checks passed!"

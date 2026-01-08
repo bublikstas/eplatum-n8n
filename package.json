@@ -9,6 +9,7 @@
     "n8n": "1.93.0"
   },
   "scripts": {
-    "start": "sh ./start-render.sh"
+    "start": "sh ./start-render.sh",
+    "check": "bash ./scripts/check.sh"
   }
 }
