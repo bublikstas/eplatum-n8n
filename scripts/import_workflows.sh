@@ -1,5 +1,5 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env sh
+set -eu
 
 echo "[import] sanitizing workflows..."
 python3 ./scripts/sanitize_workflow_ids.py

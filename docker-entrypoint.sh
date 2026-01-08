@@ -1,5 +1,5 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env sh
+set -eu
 
 # Ensure N8N_USER_FOLDER exists
 if [ -n "${N8N_USER_FOLDER:-}" ]; then
