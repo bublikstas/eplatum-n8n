@@ -1,10 +1,16 @@
-FROM docker.n8n.io/n8nio/n8n:latest
+FROM docker.n8n.io/n8nio/n8n:1.93.0
 
-WORKDIR /opt/eplatum
-COPY . /opt/eplatum
+WORKDIR /home/node
+
+# Copy entrypoint script
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+
+# Copy workflows directory if it exists
+COPY workflows /home/node/workflows
 
 USER root
-RUN chmod +x /opt/eplatum/start-render.sh
+RUN chmod +x /docker-entrypoint.sh
 USER node
 
-CMD ["/opt/eplatum/start-render.sh"]
+ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["n8n", "start"]
