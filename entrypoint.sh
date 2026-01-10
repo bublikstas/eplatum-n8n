@@ -1,19 +1,23 @@
 #!/bin/sh
-set -e
+set -eu
 
-# Render передаёт порт в переменной PORT — используем его как listen port
-export N8N_PORT="${PORT:-5678}"
-export N8N_LISTEN_ADDRESS="0.0.0.0"
+MARKER="/data/.n8n/.workflows_imported"
+IMPORT_DIR="/home/node/workflows"
 
-# user folder
-mkdir -p "${N8N_USER_FOLDER:-/data}"
-
-# импорт workflows (опционально)
-if [ -d /home/node/workflows ] && [ "$(ls -A /home/node/workflows 2>/dev/null)" ]; then
-  echo "[entrypoint] Importing workflows from /home/node/workflows..."
-  n8n import:workflow --separate --input=/home/node/workflows
-  echo "[entrypoint] Workflows imported successfully"
+# Опционально: форс-импорт через переменную окружения FORCE_IMPORT=1
+if [ "${FORCE_IMPORT:-}" = "1" ]; then
+  rm -f "$MARKER"
 fi
 
-echo "[entrypoint] Starting n8n..."
+if [ -d "$IMPORT_DIR" ] && [ "$(ls -A "$IMPORT_DIR" 2>/dev/null)" ]; then
+  if [ -f "$MARKER" ]; then
+    echo "[entrypoint] Workflows already imported; skipping"
+  else
+    echo "[entrypoint] Importing workflows from $IMPORT_DIR..."
+    n8n import:workflow --separate --input="$IMPORT_DIR"
+    touch "$MARKER"
+    echo "[entrypoint] Workflows imported."
+  fi
+fi
+
 exec n8n
