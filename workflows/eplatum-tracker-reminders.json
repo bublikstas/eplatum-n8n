@@ -1,0 +1,112 @@
+{
+  "name": "Eplatum Tracker Reminders",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "cron-node",
+      "name": "Cron (every 30min)",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT u.*, r.id as reminder_id, r.next_at as reminder_next_at\nFROM users u\nINNER JOIN reminders r ON u.tg_user_id = r.tg_user_id\nWHERE (u.snoozed_until IS NULL OR u.snoozed_until < now())\n  AND r.next_at <= now()\n  AND r.kind = 'nudge'\nORDER BY r.next_at ASC\nLIMIT 100;"
+      },
+      "id": "select-users-node",
+      "name": "Select Users for Reminders",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [200, 0],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_WITH_SUPABASE_CREDENTIALS_ID",
+          "name": "Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format reminder message based on nudge level\nconst item = $input.item.json;\nconst nudgeLevel = item.nudge_level || 'medium';\nconst currentStep = item.current_step || 1;\nconst totalSteps = 7;\n\nlet reminderText = '';\n\nif (currentStep <= totalSteps) {\n  const questions = [\n    null,\n    'Напоминание: Что хочешь изменить? (работа/бизнес/жизнь/деньги/смысл)',\n    'Напоминание: Какие ограничения? (время в неделю, деньги на старт, язык, страна/город)',\n    'Напоминание: Что реально нравится? (3 активности/темы)',\n    'Напоминание: Что получается? (3 навыка/опыта)',\n    'Напоминание: Какой формат? (найм/фриланс/свой продукт/контент/консалтинг/локальный бизнес)',\n    'Напоминание: Риск/темп? (безопасно/быстро/агрессивно)',\n    'Напоминание: Критерий успеха на 30 дней? (что будет \"победой\")'\n  ];\n  \n  reminderText = `💭 ${questions[currentStep] || 'Продолжим?'}`;\n} else {\n  reminderText = '✅ Онбординг завершен!\\n\\n🎯 Время для следующего шага. Используй /status для статуса.';\n}\n\n// Adjust tone by nudge level\nif (nudgeLevel === 'high') {\n  reminderText = `⚡ ${reminderText}`;\n} else if (nudgeLevel === 'low') {\n  reminderText = `👋 ${reminderText}`;\n}\n\n// Calculate next reminder time\nconst nudgeHours = nudgeLevel === 'low' ? 48 : (nudgeLevel === 'high' ? 8 : 24);\nconst nextNudgeAt = new Date(Date.now() + nudgeHours * 60 * 60 * 1000).toISOString();\n\n// Respect timezone - don't send during night (22:00-08:00)\nconst tz = item.timezone || 'Europe/Warsaw';\nconst now = new Date();\nconst localHour = new Date(now.toLocaleString('en-US', { timeZone: tz })).getHours();\n\nif (localHour >= 22 || localHour < 8) {\n  // Schedule for morning (08:00 local time)\n  const tomorrow = new Date(now);\n  tomorrow.setDate(tomorrow.getDate() + 1);\n  tomorrow.setHours(8, 0, 0, 0);\n  nextNudgeAt = tomorrow.toISOString();\n}\n\nreturn {\n  ...item,\n  reminderText,\n  nextNudgeAt\n};"
+      },
+      "id": "format-reminder-node",
+      "name": "Format Reminder",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 0]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.tg_chat_id }}",
+        "text": "={{ $json.reminderText }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "send-reminder-node",
+      "name": "Send Reminder",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [600, 0],
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_WITH_TELEGRAM_CREDENTIALS_ID",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE reminders\nSET next_at = '{{ $json.nextNudgeAt }}',\n    last_sent_at = now(),\n    updated_at = now()\nWHERE id = '{{ $json.reminder_id }}';"
+      },
+      "id": "update-reminder-next-node",
+      "name": "Update Reminder Next",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [800, 0],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_WITH_SUPABASE_CREDENTIALS_ID",
+          "name": "Supabase"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Cron (every 30min)": {
+      "main": [[{ "node": "Select Users for Reminders", "type": "main", "index": 0 }]]
+    },
+    "Select Users for Reminders": {
+      "main": [[{ "node": "Format Reminder", "type": "main", "index": 0 }]]
+    },
+    "Format Reminder": {
+      "main": [[{ "node": "Send Reminder", "type": "main", "index": 0 }]]
+    },
+    "Send Reminder": {
+      "main": [[{ "node": "Update Reminder Next", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Warsaw"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "versionId": "",
+  "id": "",
+  "active": false
+}

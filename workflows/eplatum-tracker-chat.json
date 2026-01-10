@@ -1,0 +1,411 @@
+{
+  "name": "Eplatum Tracker Chat",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": ["message"]
+      },
+      "id": "telegram-trigger-node",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0],
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_WITH_TELEGRAM_CREDENTIALS_ID",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract chat_id, user_id, text and detect commands\nconst item = $input.item.json;\nconst message = item.message || item.edited_message || {};\nconst chat = message.chat || {};\nconst from = message.from || {};\nconst text = message.text || '';\n\nconst chatId = chat.id;\nconst userId = from.id;\nconst userName = from.first_name || 'User';\n\n// Command detection\nconst commands = ['/start', '/status', '/nudge', '/snooze', '/reset', '/help'];\nlet command = null;\nlet commandArg = null;\n\nif (text.startsWith('/')) {\n  const parts = text.trim().split(/\\s+/);\n  command = parts[0].toLowerCase();\n  commandArg = parts.slice(1).join(' ');\n  \n  if (command === '/nudge' && commandArg) {\n    const level = commandArg.toLowerCase();\n    if (['low', 'medium', 'high'].includes(level)) {\n      commandArg = level;\n    } else {\n      commandArg = null;\n    }\n  }\n  \n  if (command === '/snooze' && commandArg) {\n    // Parse 24h, 72h format\n    const match = commandArg.match(/^(\\d+)(h|d)$/i);\n    if (match) {\n      const num = parseInt(match[1]);\n      const unit = match[2].toLowerCase();\n      commandArg = { hours: unit === 'h' ? num : num * 24 };\n    } else {\n      commandArg = null;\n    }\n  }\n}\n\nreturn {\n  chatId,\n  userId,\n  userName,\n  text: command ? command : text,\n  command,\n  commandArg,\n  isCommand: !!command\n};"
+      },
+      "id": "extract-node",
+      "name": "Extract",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [200, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO users (tg_user_id, tg_chat_id, last_seen)\nVALUES ({{ $json.userId }}, {{ $json.chatId }}, now())\nON CONFLICT (tg_user_id) DO UPDATE\nSET tg_chat_id = EXCLUDED.tg_chat_id,\n    last_seen = now(),\n    updated_at = now()\nRETURNING *;"
+      },
+      "id": "upsert-user-node",
+      "name": "Upsert User",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [400, 0],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_WITH_SUPABASE_CREDENTIALS_ID",
+          "name": "Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-command-start",
+              "leftValue": "={{ $json.command }}",
+              "rightValue": "/start",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "condition-command-status",
+              "leftValue": "={{ $json.command }}",
+              "rightValue": "/status",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "condition-command-nudge",
+              "leftValue": "={{ $json.command }}",
+              "rightValue": "/nudge",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "condition-command-snooze",
+              "leftValue": "={{ $json.command }}",
+              "rightValue": "/snooze",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "condition-command-reset",
+              "leftValue": "={{ $json.command }}",
+              "rightValue": "/reset",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "condition-command-help",
+              "leftValue": "={{ $json.command }}",
+              "rightValue": "/help",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "switch-command-node",
+      "name": "Switch Command",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.1,
+      "position": [600, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM users WHERE tg_user_id = {{ $json.userId }} LIMIT 1;"
+      },
+      "id": "get-user-node",
+      "name": "Get User",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [800, 0],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_WITH_SUPABASE_CREDENTIALS_ID",
+          "name": "Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process onboarding response or generate next step\nconst user = $input.item.json;\nconst extractData = $('Extract').item.json;\nconst currentStep = user.current_step || 1;\nconst profile = user.profile || {};\nconst text = extractData.text;\n\nconst questions = [\n  null, // Step 0 (no question)\n  'Что хочешь изменить? (работа/бизнес/жизнь/деньги/смысл)',\n  'Какие ограничения? (время в неделю, деньги на старт, язык, страна/город)',\n  'Что реально нравится? (3 активности/темы)',\n  'Что получается? (3 навыка/опыта)',\n  'Какой формат? (найм/фриланс/свой продукт/контент/консалтинг/локальный бизнес)',\n  'Риск/темп? (безопасно/быстро/агрессивно)',\n  'Критерий успеха на 30 дней? (что будет \"победой\")'\n];\n\nlet newStep = currentStep;\nlet answerKey = `s${currentStep}`;\nlet mirrorText = 'Принято.';\nlet nextQuestion = null;\nlet nextTask = null;\n\n// Save answer if not a command\nif (!extractData.isCommand && currentStep <= 7) {\n  profile.answers = profile.answers || {};\n  profile.answers[answerKey] = text;\n  newStep = currentStep + 1;\n  \n  // Try LLM for mirror (fallback to simple)\n  try {\n    mirrorText = `Понял: ${text.substring(0, 50)}${text.length > 50 ? '...' : ''}`;\n  } catch (e) {\n    mirrorText = 'Принято.';\n  }\n}\n\n// Get next question or task\nif (newStep <= 7) {\n  nextQuestion = questions[newStep];\n} else {\n  // Onboarding complete - generate 15min task\n  nextTask = 'Проверь 3 ресурса в твоей области за 15 минут';\n  \n  // Try LLM for personalized task (fallback)\n  try {\n    const domain = profile.answers?.s5 || 'выбранному направлению';\n    nextTask = `Найди 1 конкретный пример успеха в ${domain} — займет 15 минут`;\n  } catch (e) {\n    // Keep default\n  }\n}\n\n// Calculate next reminder time based on nudge_level\nconst nudgeLevel = user.nudge_level || 'medium';\nconst nudgeHours = nudgeLevel === 'low' ? 48 : (nudgeLevel === 'high' ? 8 : 24);\nconst nextNudgeAt = new Date(Date.now() + nudgeHours * 60 * 60 * 1000).toISOString();\n\nreturn {\n  ...user,\n  profile,\n  current_step: newStep,\n  mirrorText,\n  nextQuestion,\n  nextTask,\n  nextNudgeAt\n};"
+      },
+      "id": "process-onboarding-node",
+      "name": "Process Onboarding",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE users\nSET current_step = {{ $json.current_step }},\n    profile = '{{ JSON.stringify($json.profile) }}'::jsonb,\n    last_seen = now(),\n    updated_at = now()\nWHERE tg_user_id = {{ $('Extract').item.json.userId }}\nRETURNING *;"
+      },
+      "id": "update-user-node",
+      "name": "Update User",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1200, 0],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_WITH_SUPABASE_CREDENTIALS_ID",
+          "name": "Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO reminders (tg_user_id, kind, next_at)\nVALUES ({{ $('Extract').item.json.userId }}, 'nudge', '{{ $json.nextNudgeAt }}')\nON CONFLICT DO NOTHING;\n\nUPDATE reminders\nSET next_at = '{{ $json.nextNudgeAt }}',\n    updated_at = now()\nWHERE tg_user_id = {{ $('Extract').item.json.userId }} AND kind = 'nudge';"
+      },
+      "id": "update-reminder-node",
+      "name": "Update Reminder",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1400, 0],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_WITH_SUPABASE_CREDENTIALS_ID",
+          "name": "Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format bot response\nconst processed = $input.item.json;\nconst extractData = $('Extract').item.json;\n\nlet responseText = '';\n\nif (processed.mirrorText) {\n  responseText += `${processed.mirrorText}\\n\\n`;\n}\n\nif (processed.nextQuestion) {\n  responseText += `❓ ${processed.nextQuestion}`;\n} else if (processed.nextTask) {\n  responseText += `✅ Онбординг завершен!\\n\\n🎯 Следующий шаг на 15 минут:\\n${processed.nextTask}`;\n  \n  // Create task\n  return {\n    ...processed,\n    responseText,\n    shouldCreateTask: true\n  };\n}\n\nreturn {\n  ...processed,\n  responseText\n};"
+      },
+      "id": "format-response-node",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1600, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO messages (tg_user_id, role, text)\nVALUES ({{ $('Extract').item.json.userId }}, 'user', '{{ $('Extract').item.json.text }}');\n\nINSERT INTO messages (tg_user_id, role, text)\nVALUES ({{ $('Extract').item.json.userId }}, 'bot', '{{ $json.responseText }}');"
+      },
+      "id": "save-messages-node",
+      "name": "Save Messages",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1800, 0],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_WITH_SUPABASE_CREDENTIALS_ID",
+          "name": "Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Extract').item.json.chatId }}",
+        "text": "={{ $json.responseText }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "send-telegram-node",
+      "name": "Send Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [2000, 0],
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_WITH_TELEGRAM_CREDENTIALS_ID",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle /start command\nconst user = $input.item.json;\nconst currentStep = user.current_step || 1;\n\nconst questions = [\n  null,\n  'Привет! 👋 Это Eplatum Tracker — твой помощник в профориентации и предпринимательстве.\\n\\nНачнем с первого вопроса:',\n  null, null, null, null, null, null, null\n];\n\nlet responseText = '';\n\nif (currentStep === 1) {\n  responseText = questions[1] + '\\n\\n❓ Что хочешь изменить? (работа/бизнес/жизнь/деньги/смысл)';\n} else {\n  responseText = `Продолжим с шага ${currentStep}.\\n\\nИспользуй /status для статуса, /help для справки.`;\n}\n\nreturn {\n  ...user,\n  responseText\n};"
+      },
+      "id": "handle-start-node",
+      "name": "Handle /start",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle /status command\nconst user = $input.item.json;\nconst totalSteps = 7;\nconst progress = Math.round((user.current_step / totalSteps) * 100);\n\nlet responseText = `📊 Твой статус:\\n\\n`;\nresponseText += `Шаг: ${user.current_step}/${totalSteps} (${progress}%)\\n`;\nresponseText += `Напоминания: ${user.nudge_level || 'medium'}\\n`;\n\nif (user.snoozed_until) {\n  responseText += `Пауза до: ${new Date(user.snoozed_until).toLocaleString('ru-RU')}\\n`;\n}\n\nresponseText += `\\nИспользуй /help для команд.`;\n\nreturn {\n  ...user,\n  responseText\n};"
+      },
+      "id": "handle-status-node",
+      "name": "Handle /status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE users\nSET nudge_level = '{{ $('Extract').item.json.commandArg }}',\n    updated_at = now()\nWHERE tg_user_id = {{ $('Extract').item.json.userId }}\nRETURNING *;"
+      },
+      "id": "handle-nudge-node",
+      "name": "Handle /nudge",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1000, 600],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_WITH_SUPABASE_CREDENTIALS_ID",
+          "name": "Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle /snooze command\nconst extractData = $('Extract').item.json;\nconst user = $input.item.json;\n\nlet responseText = '';\n\nif (extractData.commandArg && extractData.commandArg.hours) {\n  const hours = extractData.commandArg.hours;\n  const snoozedUntil = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();\n  \n  responseText = `Напоминания приостановлены на ${hours}ч. Используй /start для продолжения.`;\n  \n  return {\n    ...user,\n    snoozed_until: snoozedUntil,\n    responseText\n  };\n} else {\n  return {\n    ...user,\n    responseText: 'Формат: /snooze 24h или /snooze 72h'\n  };\n}"
+      },
+      "id": "handle-snooze-node",
+      "name": "Handle /snooze",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 800]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle /reset command\nconst extractData = $('Extract').item.json;\nconst user = $input.item.json;\n\nif (extractData.commandArg === 'RESET') {\n  return {\n    ...user,\n    responseText: 'Сброс выполнен. Используй /start для начала заново.',\n    shouldReset: true\n  };\n} else {\n  return {\n    ...user,\n    responseText: 'Для сброса напиши: RESET (заглавными буквами)'\n  };\n}"
+      },
+      "id": "handle-reset-check-node",
+      "name": "Handle /reset Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 1000]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE users\nSET current_step = 1,\n    profile = '{}'::jsonb,\n    updated_at = now()\nWHERE tg_user_id = {{ $('Extract').item.json.userId }};\n\nDELETE FROM tasks WHERE tg_user_id = {{ $('Extract').item.json.userId }};\nDELETE FROM reminders WHERE tg_user_id = {{ $('Extract').item.json.userId }};"
+      },
+      "id": "handle-reset-exec-node",
+      "name": "Handle /reset Exec",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1200, 1000],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_WITH_SUPABASE_CREDENTIALS_ID",
+          "name": "Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Extract').item.json.chatId }}",
+        "text": "={{ $json.responseText }}"
+      },
+      "id": "send-command-response-node",
+      "name": "Send Command Response",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1400, 400],
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_WITH_TELEGRAM_CREDENTIALS_ID",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Extract').item.json.chatId }}",
+        "text": "📚 **Eplatum Tracker — Справка**\\n\\n**Команды:**\\n/start — начать/продолжить\\n/status — текущий статус\\n/nudge low|medium|high — изменить настойчивость\\n/snooze 24h|72h — пауза напоминаний\\n/reset — сбросить (требует подтверждения)\\n/help — эта справка",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "handle-help-node",
+      "name": "Handle /help",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1000, 1200],
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_WITH_TELEGRAM_CREDENTIALS_ID",
+          "name": "Telegram Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [[{ "node": "Extract", "type": "main", "index": 0 }]]
+    },
+    "Extract": {
+      "main": [[{ "node": "Upsert User", "type": "main", "index": 0 }]]
+    },
+    "Upsert User": {
+      "main": [[{ "node": "Switch Command", "type": "main", "index": 0 }]]
+    },
+    "Switch Command": {
+      "main": [
+        [{ "node": "Handle /start", "type": "main", "index": 0 }],
+        [{ "node": "Handle /status", "type": "main", "index": 0 }],
+        [{ "node": "Handle /nudge", "type": "main", "index": 0 }],
+        [{ "node": "Handle /snooze", "type": "main", "index": 0 }],
+        [{ "node": "Handle /reset Check", "type": "main", "index": 0 }],
+        [{ "node": "Handle /help", "type": "main", "index": 0 }],
+        [{ "node": "Get User", "type": "main", "index": 0 }]
+      ]
+    },
+    "Get User": {
+      "main": [[{ "node": "Process Onboarding", "type": "main", "index": 0 }]]
+    },
+    "Process Onboarding": {
+      "main": [[{ "node": "Update User", "type": "main", "index": 0 }]]
+    },
+    "Update User": {
+      "main": [[{ "node": "Update Reminder", "type": "main", "index": 0 }]]
+    },
+    "Update Reminder": {
+      "main": [[{ "node": "Format Response", "type": "main", "index": 0 }]]
+    },
+    "Format Response": {
+      "main": [[{ "node": "Save Messages", "type": "main", "index": 0 }]]
+    },
+    "Save Messages": {
+      "main": [[{ "node": "Send Telegram", "type": "main", "index": 0 }]]
+    },
+    "Handle /start": {
+      "main": [[{ "node": "Send Command Response", "type": "main", "index": 0 }]]
+    },
+    "Handle /status": {
+      "main": [[{ "node": "Send Command Response", "type": "main", "index": 0 }]]
+    },
+    "Handle /nudge": {
+      "main": [[{ "node": "Send Command Response", "type": "main", "index": 0 }]]
+    },
+    "Handle /snooze": {
+      "main": [[{ "node": "Update User", "type": "main", "index": 0 }]]
+    },
+    "Handle /reset Check": {
+      "main": [
+        [{ "node": "Handle /reset Exec", "type": "main", "index": 0 }],
+        [{ "node": "Send Command Response", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Warsaw"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "versionId": "",
+  "id": "",
+  "active": false
+}
