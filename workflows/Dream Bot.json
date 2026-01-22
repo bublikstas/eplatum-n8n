@@ -26,7 +26,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Normalize Telegram input + command gating\nconst msg = $json.message || {};\nconst textRaw = (msg.text ?? msg.caption ?? '').toString();\n\n// Remove zero-width chars and trim only leading spaces for command check\nconst textNoZW = textRaw.replace(/[\\u200B-\\u200D\\uFEFF]/g, '');\nconst textForCmd = textNoZW.trimStart();\nconst text = textNoZW.trim();\n\nconst chatId = msg.chat?.id;\nif (!chatId) throw new Error('Cannot resolve chatId (message.chat.id)');\n\n// Strict: treat as command only if Telegram marks it as bot_command at offset 0\nconst entities = Array.isArray(msg.entities) ? msg.entities : [];\nconst hasBotCommandEntity = entities.some(\n  (e) => e?.type === 'bot_command' && (e.offset ?? 0) === 0\n);\n\nconst isCommand = hasBotCommandEntity;\nconst command = isCommand ? (textForCmd.split(/\\s+/)[0] || textForCmd) : '';\n\nreturn [{\n  json: {\n    ...$json,\n    chatId,\n    user_text: text,\n    isCommand,\n    command,\n  }\n}];"
+        "jsCode": "// Normalize Telegram input + command gating\nconst msg = $json.message || {};\nconst textRaw = (msg.text ?? msg.caption ?? '').toString();\n\n// Remove zero-width chars and trim only leading spaces for command check\nconst textNoZW = textRaw.replace(/[\\u200B-\\u200D\\uFEFF]/g, '');\nconst textForCmd = textNoZW.trimStart();\nconst text = textNoZW.trim();\n\nconst chatId = msg.chat?.id;\nif (!chatId) throw new Error('Cannot resolve chatId (message.chat.id)');\n\n// Strict: treat as command only if Telegram marks it as bot_command at offset 0\nconst entities = Array.isArray(msg.entities) ? msg.entities : [];\nconst hasBotCommandEntity = entities.some(\n  (e) => e?.type === 'bot_command' && (e.offset ?? 0) === 0\n);\n\nconst isCommand = hasBotCommandEntity;\nconst command = isCommand ? (textForCmd.split(/\\s+/)[0] || textForCmd) : '';\nconst route = isCommand ? 'command' : 'text';\n\nreturn [{\n  json: {\n    ...$json,\n    chatId,\n    user_text: text,\n    isCommand,\n    command,\n    route,\n  }\n}];"
       },
       "id": "a2b152c2-433d-43c4-af14-cdf58a95106c",
       "name": "Prep Input",
@@ -40,10 +40,11 @@
     {
       "parameters": {
         "conditions": {
-          "boolean": [
+          "string": [
             {
-              "value1": "={{ Array.isArray($json.message?.entities) && $json.message.entities.some(e => e?.type === 'bot_command' && (e.offset ?? 0) === 0) }}",
-              "value2": true
+              "value1": "={{ $json.route }}",
+              "operation": "equals",
+              "value2": "command"
             }
           ]
         },
