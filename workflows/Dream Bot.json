@@ -26,7 +26,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Normalize Telegram input + command gating\nconst msg = $json.message || {};\nconst textRaw = (msg.text ?? msg.caption ?? '').toString();\nconst text = textRaw.trim();\n\nconst chatId = msg.chat?.id;\nif (!chatId) throw new Error('Cannot resolve chatId (message.chat.id)');\n\nconst isCommand = text.startsWith('/'); // /start, /help, etc.\nconst command = isCommand ? (text.split(/\\s+/)[0] || text) : '';\n\nreturn [{\n  json: {\n    ...$json,\n    chatId,\n    user_text: text,\n    isCommand,\n    command,\n  }\n}];"
+        "jsCode": "// Normalize Telegram input + command gating\nconst msg = $json.message || {};\nconst textRaw = (msg.text ?? msg.caption ?? '').toString();\n\n// Remove zero-width chars and trim only leading spaces for command check\nconst textNoZW = textRaw.replace(/[\\u200B-\\u200D\\uFEFF]/g, '');\nconst textForCmd = textNoZW.trimStart();\nconst text = textNoZW.trim();\n\nconst chatId = msg.chat?.id;\nif (!chatId) throw new Error('Cannot resolve chatId (message.chat.id)');\n\n// Strict: treat as command only if Telegram marks it as bot_command at offset 0\nconst entities = Array.isArray(msg.entities) ? msg.entities : [];\nconst hasBotCommandEntity = entities.some(\n  (e) => e?.type === 'bot_command' && (e.offset ?? 0) === 0\n);\n\nconst isCommand = hasBotCommandEntity;\nconst command = isCommand ? (textForCmd.split(/\\s+/)[0] || textForCmd) : '';\n\nreturn [{\n  json: {\n    ...$json,\n    chatId,\n    user_text: text,\n    isCommand,\n    command,\n  }\n}];"
       },
       "id": "a2b152c2-433d-43c4-af14-cdf58a95106c",
       "name": "Prep Input",
@@ -82,49 +82,6 @@
     },
     {
       "parameters": {
-        "operation": "sendChatAction",
-        "chatId": "={{ $json.chatId }}"
-      },
-      "id": "2e1fc802-ca9d-45c2-9055-fb62dc59d588",
-      "name": "Send Chat Action (typing)",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1,
-      "position": [
-        1408,
-        592
-      ],
-      "webhookId": "ee3b43aa-ab12-49bc-adfa-9a648c7b25f9",
-      "credentials": {
-        "telegramApi": {
-          "id": "3USnxVmFx9dNCtyF",
-          "name": "Dream Int TELEGRAM"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "chatId": "={{ $json.chatId }}",
-        "text": "⏳ Думаю над интерпретацией…",
-        "additionalFields": {}
-      },
-      "id": "8f5cb276-f720-4f84-85da-1b1c3928f83a",
-      "name": "Send Progress Message",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1,
-      "position": [
-        1632,
-        592
-      ],
-      "webhookId": "061b4bbc-aea8-44e2-a534-5005b82640c2",
-      "credentials": {
-        "telegramApi": {
-          "id": "3USnxVmFx9dNCtyF",
-          "name": "Dream Int TELEGRAM"
-        }
-      }
-    },
-    {
-      "parameters": {
         "promptType": "define",
         "text": "={{ $json.user_text }}",
         "options": {
@@ -168,9 +125,9 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build final Telegram message (single message <= 3500 chars) + capture message_id to edit\nconst MAX = 3500;\n\n// Get agent output\nconst out = ($json.output ?? $json.text ?? '').toString().trim();\nif (!out) throw new Error('Empty agent output');\n\n// Unicode-safe helpers\nconst uLen = (s) => Array.from(s).length;\nconst uSlice = (s, start, end) => Array.from(s).slice(start, end).join('');\n\n// Trim to MAX with a soft ending\nlet text = out.replace(/\\r\\n/g, '\\n').trim();\n\nif (uLen(text) > MAX) {\n  // Leave room for suffix\n  const suffix = '\\n\\n…(сокращено из‑за лимита Telegram)';\n  const room = MAX - uLen(suffix);\n  text = uSlice(text, 0, Math.max(0, room)).trimEnd() + suffix;\n}\n\nconst chatId = $json.chatId;\n\n// Get progress message_id from previous node output (robust)\nconst progressItems = $items('Send Progress Message');\nif (!progressItems?.length) throw new Error('No items from \"Send Progress Message\"');\n\nconst pj = progressItems[0].json || {};\nconst messageId =\n  pj.message_id ??\n  pj.messageId ??\n  pj.result?.message_id ??\n  pj.result?.messageId ??\n  pj.data?.message_id ??\n  pj.data?.messageId;\n\nif (!messageId) throw new Error('Cannot resolve progress message_id to edit');\n\nreturn [{\n  json: {\n    ...$json,\n    chatId,\n    messageId,\n    text,\n  }\n}];"
+        "jsCode": "// Build final Telegram message (single message <= 3500 chars)\nconst MAX = 3500;\n\n// Get agent output\nconst out = ($json.output ?? $json.text ?? '').toString().trim();\nif (!out) throw new Error('Empty agent output');\n\n// Unicode-safe helpers\nconst uLen = (s) => Array.from(s).length;\nconst uSlice = (s, start, end) => Array.from(s).slice(start, end).join('');\n\n// Trim to MAX with a soft ending\nlet text = out.replace(/\\r\\n/g, '\\n').trim();\n\nif (uLen(text) > MAX) {\n  // Leave room for suffix\n  const suffix = '\\n\\n…(сокращено из‑за лимита Telegram)';\n  const room = MAX - uLen(suffix);\n  text = uSlice(text, 0, Math.max(0, room)).trimEnd() + suffix;\n}\n\nconst chatId = $json.chatId;\n\nreturn [{\n  json: {\n    ...$json,\n    chatId,\n    text,\n  }\n}];"
       },
-      "id": "db88fbf8-4a2d-4e5a-ba0a-863216cfb06c",
+      "id": "3c4b1d29-49d0-44a3-9b22-bc852d0ff355",
       "name": "Finalize Text",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -181,21 +138,19 @@
     },
     {
       "parameters": {
-        "operation": "editMessageText",
         "chatId": "={{ $json.chatId }}",
-        "messageId": "={{ $json.messageId }}",
         "text": "={{ $json.text }}",
         "additionalFields": {}
       },
-      "id": "f781974b-afc3-4872-9e5c-85e78ed5082f",
-      "name": "Edit Progress Message (final answer)",
+      "id": "c5c4e607-0c8c-4bf9-9c97-43f2f1f1ad2d",
+      "name": "Send Final Interpretation",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1,
       "position": [
         2272,
         832
       ],
-      "webhookId": "a9e657d5-78be-44ce-a519-a362d5499047",
+      "webhookId": "8a95f392-0c34-40e8-b5d7-2e65c4dbd462",
       "credentials": {
         "telegramApi": {
           "id": "3USnxVmFx9dNCtyF",
@@ -239,28 +194,6 @@
         ],
         [
           {
-            "node": "Send Chat Action (typing)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Send Chat Action (typing)": {
-      "main": [
-        [
-          {
-            "node": "Send Progress Message",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Send Progress Message": {
-      "main": [
-        [
-          {
             "node": "AI Agent1",
             "type": "main",
             "index": 0
@@ -283,7 +216,7 @@
       "main": [
         [
           {
-            "node": "Edit Progress Message (final answer)",
+            "node": "Send Final Interpretation",
             "type": "main",
             "index": 0
           }
