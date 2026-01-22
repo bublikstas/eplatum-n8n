@@ -42,7 +42,7 @@
         "conditions": {
           "boolean": [
             {
-              "value1": "={{ $json.isCommand }}",
+              "value1": "={{ Array.isArray($json.message?.entities) && $json.message.entities.some(e => e?.type === 'bot_command' && (e.offset ?? 0) === 0) }}",
               "value2": true
             }
           ]
