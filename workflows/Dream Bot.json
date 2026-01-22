@@ -62,7 +62,7 @@
     {
       "parameters": {
         "chatId": "={{ $json.chatId }}",
-        "text": "ТЕСТ: ОБНОВЛЕННЫЙ ОТВЕТ ДЛЯ КОМАНД. Если вы видите это сообщение — импорт применился.",
+        "text": "Напишите сон обычным текстом (как можно подробнее: сюжет, эмоции, персонажи, место, финал). Команды я не анализирую 🙂",
         "additionalFields": {}
       },
       "id": "108ea612-8a87-4f82-b83e-62ae1687e261",
@@ -74,6 +74,27 @@
         448
       ],
       "webhookId": "6554fdee-87e3-4e96-820c-84d281df8be9",
+      "credentials": {
+        "telegramApi": {
+          "id": "3USnxVmFx9dNCtyF",
+          "name": "Dream Int TELEGRAM"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "sendChatAction",
+        "chatId": "={{ $json.chatId }}"
+      },
+      "id": "f3b02a2d-0cb9-46bb-b5f5-2f40f98c55c6",
+      "name": "Send Chat Action (typing)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        1408,
+        592
+      ],
+      "webhookId": "0f2f8e77-2a30-4e45-86d6-0ac8c6f8b69b",
       "credentials": {
         "telegramApi": {
           "id": "3USnxVmFx9dNCtyF",
@@ -193,6 +214,17 @@
             "index": 0
           }
         ],
+        [
+          {
+            "node": "Send Chat Action (typing)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Chat Action (typing)": {
+      "main": [
         [
           {
             "node": "AI Agent1",
